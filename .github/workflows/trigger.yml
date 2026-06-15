@@ -1,20 +1,42 @@
 name: Multi-IP URL Trigger
 
 on:
-  workflow_dispatch: # Allows you to trigger this manually with a button
+  workflow_dispatch:
+
+env:
+  TOTAL_INSTANCES: 5     # Define just the number here
+  HOLD_DURATION: '30'    # Time in seconds to keep the step open
 
 jobs:
+  # Job 1: Converts your single number into an array format automatically
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps: set-matrix.outputs.matrix }}
+    steps:
+      - id: set-matrix
+        run: |
+          # Generates a JSON array like [1,2,3,4,5] from your number
+          ARRAY=$(seq 1 ${{ env.TOTAL_INSTANCES }} | jq -R . | jq -s -c)
+          echo "matrix=$ARRAY" >> $GITHUB_OUTPUT
+
+  # Job 2: Runs your URLs in parallel using the generated array
   trigger-url:
+    needs: setup
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # This creates 5 parallel runner instances. 
-        # Each instance will run independently and likely use a different IP.
-        instance: [1, 2, 3, 4, 5]
+        instance: ${{ fromJson(needs.setup.outputs.matrix) }}
     
     steps:
-      - name: Hit URL with Curl
+      - name: Hit URL and Hold Connection
         run: |
           echo "Instance ${{ matrix.instance }} is running..."
-          # Replace the URL below with your target URL
-          curl -I "https://www.google.com"
+          
+          # Sends a Keep-Alive header and runs curl in the background
+          curl -I -H "Connection: keep-alive" "https://google.com" &
+          
+          echo "Holding runner open for ${{ env.HOLD_DURATION }} seconds..."
+          sleep ${{ env.HOLD_DURATION }}
+          
+          echo "Instance ${{ matrix.instance }} finished."
