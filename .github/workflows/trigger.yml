@@ -1,0 +1,20 @@
+name: Multi-IP URL Trigger
+
+on:
+  workflow_dispatch: # Allows you to trigger this manually with a button
+
+jobs:
+  trigger-url:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # This creates 5 parallel runner instances. 
+        # Each instance will run independently and likely use a different IP.
+        instance: [1, 2, 3, 4, 5]
+    
+    steps:
+      - name: Hit URL with Curl
+        run: |
+          echo "Instance ${{ matrix.instance }} is running..."
+          # Replace the URL below with your target URL
+          curl -I "https://www.google.com"
